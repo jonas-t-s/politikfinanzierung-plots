@@ -1,6 +1,7 @@
 import os
 
 import matplotlib.pyplot as plt
+import numpy as np
 import pandas
 import seaborn as sns
 import pandas as pd
@@ -19,7 +20,8 @@ def beautifyplot(fig, ax, force_no_scientific=False):
     if force_no_scientific:
         ax.yaxis.get_major_formatter().set_scientific(False)
     fig.tight_layout()
-
+def savefig(plt, fig, ax, name):
+    plt.savefig(PLOTLOCATION + Offenlegungslauf + "/" + name)
 
 for Offenlegungslauf in set(gesamteinnahmen["Offenlegungslauf"]):
 
@@ -32,7 +34,8 @@ for Offenlegungslauf in set(gesamteinnahmen["Offenlegungslauf"]):
     plt.tight_layout()
     fig.suptitle("Durschnittliches gemeldetes Budget pro Partei")
     beautifyplot(fig, ax)
-    plt.savefig(PLOTLOCATION+ Offenlegungslauf +"/" + "durchschnittlich gemeldetes Budget_pro_partei.svg")
+    savefig(plt, fig, ax, "durchschnittlich gemeldetes Budget_pro_partei.svg")
+
     # Plots the total budget per party
     fig, ax = getfigax()
     aufsumiertebudgets = dict()
@@ -49,4 +52,13 @@ for Offenlegungslauf in set(gesamteinnahmen["Offenlegungslauf"]):
     sns.barplot(df, x=MUTTERPARTEI, y="Budget")
     beautifyplot(fig, ax)
     plt.suptitle("Totales Budget pro Partei")
-    plt.savefig(PLOTLOCATION + Offenlegungslauf + "/" + "Totales Budget pro Partei.svg" )
+    savefig(plt,fig,ax,"Totales Budget pro Partei.svg" )
+
+    zuwendungen = zuwendungen.sort_values("Wert (in CHF)", ascending=False)
+    top10 = zuwendungen.head(10)
+    recipents = set(top10[MUTTERPARTEI])
+    fig, ax = getfigax()
+    sns.barplot(top10, x=MUTTERPARTEI, y="Wert (in CHF)", estimator=np.sum, ax=ax)
+    beautifyplot(fig, ax)
+    savefig(plt,fig,ax,"TOP10Zuwendungen-Empfänger.svg")
+    print(recipents)
