@@ -59,6 +59,7 @@ for Offenlegungslauf in set(gesamteinnahmen["Offenlegungslauf"]):
     recipents = set(top10[MUTTERPARTEI])
     fig, ax = getfigax()
     sns.barplot(top10, x=MUTTERPARTEI, y="Wert (in CHF)", estimator=np.sum, ax=ax)
+    plt.suptitle("Grösste 10 Zuwendungen")
     beautifyplot(fig, ax)
     savefig(plt,fig,ax,"TOP10Zuwendungen-Empfänger.svg")
     print(recipents)
