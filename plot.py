@@ -14,11 +14,15 @@ zuwendungen = pd.read_csv("Zuwendungen.csv")
 
 def getfigax():
     return plt.subplots(1,1, figsize=((10,10)))
-def beautifyplot(fig, ax):
+def beautifyplot(fig, ax, force_no_scientific=False):
     ax.set_xticklabels(ax.get_xticklabels(), rotation=45, horizontalalignment="right")
+    if force_no_scientific:
+        ax.yaxis.get_major_formatter().set_scientific(False)
     fig.tight_layout()
 
+
 for Offenlegungslauf in set(gesamteinnahmen["Offenlegungslauf"]):
+
     os.system(f"mkdir -p \'{PLOTLOCATION}{Offenlegungslauf}\'")
 
     # Plots the average per party
@@ -41,6 +45,7 @@ for Offenlegungslauf in set(gesamteinnahmen["Offenlegungslauf"]):
         new_record = pd.DataFrame([[key, value]], columns=df.columns)
         df = pd.concat([df, new_record], ignore_index=True)
     df = df.sort_values("Budget", ascending=False)
+    df["Budget"] = df["Budget"].astype(int)
     sns.barplot(df, x=MUTTERPARTEI, y="Budget")
     beautifyplot(fig, ax)
     plt.suptitle("Totales Budget pro Partei")
