@@ -48,7 +48,10 @@ for offenlegungslauf in set(df["Offenlegungslauf"]):
             ax.set_title(f"Zuwendungen {party} {offenlegungslauf}")
         else:
             plt.pie(a["Wert (in CHF)"], labels=a["Merged"])
-            plt.title(f"Zuwendungen {party} {offenlegungslauf}")
+            title = f"Zuwendungen {party} {offenlegungslauf}"
+            if NUMBEROFDONORSPERPLOT < np.inf:
+                f"Zuwendungen {party} Top {NUMBEROFDONORSPERPLOT}"
+            plt.title(title)
             # plt.show()
             plt.tight_layout()
             plt.savefig(f"plots/{offenlegungslauf.replace(' ','')}/{party}.png")
@@ -58,5 +61,8 @@ for offenlegungslauf in set(df["Offenlegungslauf"]):
             fig.delaxes(axes.flatten()[j])
 
         fig.tight_layout(rect=[0,0, 1, 0.95])
-        plt.suptitle(f"Zuwendungen für {offenlegungslauf}")
+        suptitle = f"Zuwendungen für {offenlegungslauf}"
+        if NUMBEROFDONORSPERPLOT < np.inf:
+            suptitle += f" Top (n={NUMBEROFDONORSPERPLOT})"
+        plt.suptitle(suptitle)
         plt.savefig(f"plots/{offenlegungslauf.replace(' ','')}/all.png")
