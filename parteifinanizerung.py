@@ -1,5 +1,6 @@
 import fnmatch
 import os
+import random
 import re
 
 import numpy as np
@@ -10,11 +11,16 @@ from difflib import SequenceMatcher
 import argparse
 COLORS = {
     "SP": "red",
-    "": "yellow",
+    "SVP": "yellow",
     "FDP.Die Liberalen": "blue",
     "Die Mitte": "orange"
 }
 
+def get_color(party):
+    for key in COLORS.keys():
+        if key in party:
+            return COLORS[key]
+    return [random.random(), random.random(), random.random()]
 COLNAME_AMOUNT = "Wert (in CHF)"
 
 pandas.options.mode.copy_on_write = True
@@ -38,7 +44,7 @@ def renamesimilar(df: pandas.DataFrame, column: str, threshold: float = 0.9):
     return df
 
 
-def plotpartydonorsperparty(filelocation, showrest, MULTIPLOTSINONE=True):
+def plotpartydonorsperparty(filelocation, showrest, MULTIPLOTSINONE=True, threshold=0.9):
     global rowsdonor
     df = get_excel_data(filelocation)
     print(df)
@@ -60,7 +66,7 @@ def plotpartydonorsperparty(filelocation, showrest, MULTIPLOTSINONE=True):
                 "Merged_Name"].str.strip()
             partydonors["Merged"] = partydonors["Merged"].apply(lambda row: row.rstrip(" "))
             partydonors["Merged"] = partydonors["Merged"].apply(lambda row: rightstrip_with_wildcards(row, "(*)"))
-            partydonors = renamesimilar(partydonors, "Merged")
+            partydonors = renamesimilar(partydonors, "Merged", threshold=threshold)
             a = partydonors.nlargest(NUMBEROFDONORSPERPLOT, "Wert (in CHF)")
 
             if showrest and len(partydonors)> len(a):
@@ -107,7 +113,7 @@ def get_excel_data(filelocation):
     return df
 
 
-def plotperdonor(filelocation: str = "./2023_Parteifinanzierung.xlsx"):
+def plotperdonor(filelocation: str = "./2023_Parteifinanzierung.xlsx", threshold=0.9):
     global rowsdonor
     df = get_excel_data(filelocation)
     for offenlegungslauf in set(df["Offenlegungslauf"]):
@@ -120,7 +126,7 @@ def plotperdonor(filelocation: str = "./2023_Parteifinanzierung.xlsx"):
         ldf["Merged"] = ldf["Merged"].apply(lambda row: rightstrip_with_wildcards(row, "(*)"))
         ldf["Merged"] = ldf["Merged"].apply(lambda row: row.lstrip(" "))
         ldf["Merged"] = ldf["Merged"].apply(lambda row: row.rstrip(" "))
-        ldf = renamesimilar(ldf, "Merged")
+        ldf = renamesimilar(ldf, "Merged", threshold=threshold)
         plotlocation = f"plots/{offenlegungslauf.replace(' ', '')}/DONORS"
         os.system(f"mkdir -p {plotlocation}")
         plt.rcParams.update({'font.size': 40})
@@ -133,7 +139,7 @@ def plotperdonor(filelocation: str = "./2023_Parteifinanzierung.xlsx"):
                 party = row[PARTY_NAME]
                 merged = False
                 for p2 in df[PARTY_NAME]:
-                    if SequenceMatcher(None, party, p2).ratio() > 0.9:
+                    if SequenceMatcher(None, party, p2).ratio() > threshold:
                         df[df[PARTY_NAME] == p2][COLNAME_AMOUNT] += row[COLNAME_AMOUNT]
                         merged = True
                         break
@@ -142,7 +148,7 @@ def plotperdonor(filelocation: str = "./2023_Parteifinanzierung.xlsx"):
             rowsdonor = df
 
             plt.pie(rowsdonor["Wert (in CHF)"], labels=rowsdonor[PARTY_NAME],
-                    autopct=lambda p: '{:.0f}'.format(p * rowsdonor[COLNAME_AMOUNT].sum() / 100))
+                    autopct=lambda p: '{:.0f}'.format(p * rowsdonor[COLNAME_AMOUNT].sum() / 100), colors=[get_color(row) for row in rowsdonor[PARTY_NAME]])
             plt.title(f"Zuwendungen {donor}\n{offenlegungslauf}")
             plt.tight_layout()
             plt.savefig(f"{plotlocation}/{donor.replace('/', '')}.png")
@@ -157,15 +163,17 @@ def main():
     parser.add_argument("--add-rest", help="Show a reminder position in the plots", action="store_true")
     parser.add_argument("--top-n", type=int, default=np.inf, help="Only show the top n donors in each plot.")
     parser.add_argument("--multiple-plots-in-one", help="Show multiple plots in one figure", action="store_true")
+    parser.add_argument("--threshold", type=float, default=0.9, help="Threshold for merging donors. Default: 0.9 (90%)")
+
     args = parser.parse_args()
     global NUMBEROFDONORSPERPLOT
     NUMBEROFDONORSPERPLOT = args.num_donors
 
-    plotpartydonorsperparty(args.input_file, args.add_rest, args.multiple_plots_in_one)
+    plotpartydonorsperparty(args.input_file, args.add_rest, args.multiple_plots_in_one, args.threshold)
     print(
         f"Plots are saved in the plots/ folder."
     )
-    plotperdonor(args.input_file)
+    plotperdonor(args.input_file, args.threshold)
 
 if __name__ == '__main__':
     main()

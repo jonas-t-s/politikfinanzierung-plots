@@ -5,6 +5,8 @@ import numpy as np
 import seaborn as sns
 import pandas as pd
 
+print("This script is not implemented yet. Please take a look at parteifinanzierung.py instead.")
+exit(1)
 gesamtbetragdereinnahmen = "Gesamtbetrag der Einnahmen (in CHF)"
 
 MUTTERPARTEI = "Parteizugehörigkeit (Mutterpartei)"
