@@ -44,16 +44,20 @@ def renamesimilar(df: pandas.DataFrame, column: str, threshold: float = 0.9):
     return df
 
 
-def plotpartydonorsperparty(filelocation, showrest, MULTIPLOTSINONE=True, threshold=0.9):
+def plotpartydonorsperparty(filelocation, showrest, MULTIPLOTSINONE=True, threshold=0.9,fileformat : str = "png"):
     global rowsdonor
     df = get_excel_data(filelocation)
     print(df)
+
     for offenlegungslauf in set(df["Offenlegungslauf"]):
 
         ldf = extract_year_and_relevantdata(df, offenlegungslauf)
         parties = list(set(ldf[PARTY_NAME]))
         numparties = len(parties)
-        fig, axes = plt.subplots(int(np.ceil(np.sqrt(numparties))), int(np.ceil(np.sqrt(numparties))), figsize=(20, 20))
+        if MULTIPLOTSINONE:
+            fig, axes = plt.subplots(int(np.ceil(np.sqrt(numparties))), int(np.ceil(np.sqrt(numparties))), figsize=(21, 21))
+        else:
+            fig, axes = plt.subplots(1,1, figsize=(21, 21))
         plt.rcParams.update({'font.size': 14})
 
         os.makedirs(f"plots/{offenlegungslauf.replace(' ', '')}", exist_ok=True)
@@ -72,20 +76,25 @@ def plotpartydonorsperparty(filelocation, showrest, MULTIPLOTSINONE=True, thresh
             if showrest and len(partydonors)> len(a):
                 a.loc[len(a)] = {"Merged": "Rest", COLNAME_AMOUNT: 0, "Akteur": party}
 
-                a[a["Merged"]=="Rest"][COLNAME_AMOUNT]= partydonors["Wert (in CHF)"].sum() - a["Wert (in CHF)"].sum()
+                a.at[len(a)-1, COLNAME_AMOUNT] = partydonors["Wert (in CHF)"].sum() - a["Wert (in CHF)"].sum()
+            def func(pct, allvals):
+                absolute = int(pct / 100. * allvals[COLNAME_AMOUNT].sum())
+                return "{:.1f}%\n({:d})".format(pct, absolute)
+
+            colors = sns.color_palette('husl', len(a))
             if MULTIPLOTSINONE:
                 ax = axes.flatten()[parties.index(party)]
-                ax.pie(a["Wert (in CHF)"], labels=a["Merged"])
+                ax.pie(a["Wert (in CHF)"], labels=a["Merged"], autopct=lambda pct: func(pct, a), colors=colors)
                 ax.set_title(f"Zuwendungen {party} {offenlegungslauf}")
             else:
-                plt.pie(a["Wert (in CHF)"], labels=a["Merged"])
+                plt.pie(a["Wert (in CHF)"], labels=a["Merged"], autopct=lambda pct: func(pct, a), colors=colors)
                 title = f"Zuwendungen {party} {offenlegungslauf}"
                 if NUMBEROFDONORSPERPLOT < np.inf:
-                    f"Zuwendungen {party} Top {NUMBEROFDONORSPERPLOT}"
+                    title = f"Zuwendungen {party} Top {NUMBEROFDONORSPERPLOT}"
                 plt.title(title)
                 # plt.show()
                 plt.tight_layout()
-                plt.savefig(f"plots/{offenlegungslauf.replace(' ', '')}/{party}.png")
+                plt.savefig(f"plots/{offenlegungslauf.replace(' ', '')}/{party}.{fileformat}")
                 plt.clf()
         if MULTIPLOTSINONE:
             for j in range(len(parties), len(axes.flatten())):
@@ -96,10 +105,9 @@ def plotpartydonorsperparty(filelocation, showrest, MULTIPLOTSINONE=True, thresh
             if NUMBEROFDONORSPERPLOT < np.inf:
                 suptitle += f" Top (n={NUMBEROFDONORSPERPLOT})"
             plt.suptitle(suptitle)
-            plt.savefig(f"plots/{offenlegungslauf.replace(' ', '')}/all.png")
+            plt.savefig(f"plots/{offenlegungslauf.replace(' ', '')}/all.{fileformat}")
 
         plt.clf()
-        df = plotperdonor()
 
 
 def extract_year_and_relevantdata(df, offenlegungslauf):
@@ -113,7 +121,7 @@ def get_excel_data(filelocation):
     return df
 
 
-def plotperdonor(filelocation: str = "./2023_Parteifinanzierung.xlsx", threshold=0.9):
+def plotperdonor(filelocation: str = "./2023_Parteifinanzierung.xlsx", threshold=0.9, fileformat : str = "png"):
     global rowsdonor
     df = get_excel_data(filelocation)
     for offenlegungslauf in set(df["Offenlegungslauf"]):
@@ -151,7 +159,7 @@ def plotperdonor(filelocation: str = "./2023_Parteifinanzierung.xlsx", threshold
                     autopct=lambda p: '{:.0f}'.format(p * rowsdonor[COLNAME_AMOUNT].sum() / 100), colors=[get_color(row) for row in rowsdonor[PARTY_NAME]])
             plt.title(f"Zuwendungen {donor}\n{offenlegungslauf}")
             plt.tight_layout()
-            plt.savefig(f"{plotlocation}/{donor.replace('/', '')}.png")
+            plt.savefig(f"{plotlocation}/{donor.replace('/', '')}.{fileformat}")
             plt.clf()
     return df
 
@@ -160,20 +168,22 @@ def main():
     parser = argparse.ArgumentParser(description='Parse financial contributions and generate plots.')
     parser.add_argument('--input_file', type=str, help='Path to the Excel file with the data', default="./2023_Parteifinanzierung.xlsx", required=False)
     parser.add_argument('--num_donors', type=int, default=10, help='Number of top donors to display in each plot')
-    parser.add_argument("--add-rest", help="Show a reminder position in the plots", action="store_true")
+    parser.add_argument("--show-rest", help="Show a reminder position in the plots", action="store_true")
     parser.add_argument("--top-n", type=int, default=np.inf, help="Only show the top n donors in each plot.")
     parser.add_argument("--multiple-plots-in-one", help="Show multiple plots in one figure", action="store_true")
     parser.add_argument("--threshold", type=float, default=0.9, help="Threshold for merging donors. Default: 0.9 (90%)")
-
+    parser.add_argument("--only-partyplots", help="Only generate party plots. Do not generate donor plots.", action="store_true")
+    parser.add_argument("--file-format", type=str, default="png", help="File format for the plots. Default: png. ")
     args = parser.parse_args()
     global NUMBEROFDONORSPERPLOT
     NUMBEROFDONORSPERPLOT = args.num_donors
 
-    plotpartydonorsperparty(args.input_file, args.add_rest, args.multiple_plots_in_one, args.threshold)
+    plotpartydonorsperparty(args.input_file, args.show_rest, args.multiple_plots_in_one, args.threshold, args.file_format)
     print(
         f"Plots are saved in the plots/ folder."
     )
-    plotperdonor(args.input_file, args.threshold)
+    if not args.only_partyplots:
+        plotperdonor(args.input_file, args.threshold, args.file_format)
 
 if __name__ == '__main__':
     main()
